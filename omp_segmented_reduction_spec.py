@@ -21,9 +21,13 @@ from ctree.types import get_c_type_from_numpy_dtype
 from collections import namedtuple
 
 
+REDUCTION_FUNC_NAME = 'reducer'
+
+
 #
 # Specializer Code
 #
+
 
 class ConcreteRemoval(ConcreteSpecializedFunction):
 
@@ -87,7 +91,7 @@ class LazyRemoval(LazySpecializedFunction):
             CppInclude("omp.h"),
             CppInclude("stdio.h"),
             apply_one,
-            FunctionDecl(None, "reducer",
+            FunctionDecl(None, REDUCTION_FUNC_NAME,
                          params=[
                              SymbolRef("input_arr", input_pointer()),
                              SymbolRef("output_arr", output_pointer())
@@ -160,7 +164,8 @@ class LazyRemoval(LazySpecializedFunction):
         # Instantiation of the concrete function
         fn = ConcreteRemoval()
 
-        return fn.finalize(Project([tree]), "reducer", entry_type)
+        return fn.finalize(Project([tree]), REDUCTION_FUNC_NAME, entry_type)
+
 
 #
 # User Code
