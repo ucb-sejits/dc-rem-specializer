@@ -3,6 +3,25 @@ from cstructures.array import Array, specialize, wraps, gen_array_output
 
 
 #
+# DC Removal
+#
+
+
+def dcRemoval(block_set, pfov_length):
+    """
+    Performs DC Removal with codegenerated SEJITS code.
+
+    :param: block_set The dataset for the DC removal
+    :param: pfov_length The length of the partial field of view
+    :return: the result of the DC removal
+    """
+    b = Array.array(segmented_spec(block_set, pfov_length) / pfov_length)
+    shape = block_set.shape
+
+    return subtract(block_set.ravel(), b, block_set.size, b.size).reshape(shape)
+
+
+#
 # Segmented Reduction Specializer Invocation
 #
 
@@ -46,16 +65,3 @@ def tile_mapper(func):
 @tile_mapper
 def subtract(x, y):
     return x - y
-
-
-#
-# DC Removal
-#
-
-
-def dcRemoval(block_set, pfov_length):
-
-    b = Array.array(segmented_spec(block_set, pfov_length) / pfov_length)
-    shape = block_set.shape
-
-    return subtract(block_set.ravel(), b, block_set.size, b.size).reshape(shape)
