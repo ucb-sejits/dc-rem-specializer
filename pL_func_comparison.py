@@ -5,18 +5,9 @@
 #               library.                             #
 ######################################################
 
-#
-# IMPORTATIONS
-#
-
-import pyop
-from pyop import LinearOperator, matvectorized
-import numpy as np
+from pyop import matvectorized
 from numpy import tile
-import ctree
-from ctree.util import Timer
-from collections import namedtuple
-from itertools import tee, count
+
 
 def dcRemoval(block_set, height, length):
 
