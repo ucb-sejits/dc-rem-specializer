@@ -103,7 +103,10 @@ class LazyRemoval(LazySpecializedFunction):
                                  [
                                  # {TYPE} result = input_arr[0];
                                  Assign(SymbolRef('result', inner_type),
-                                        ArrayRef(SymbolRef('input_arr'), Constant(0))
+                                        ArrayRef(SymbolRef('input_arr'), Mul(
+                                                SymbolRef('i'),
+                                                Constant(segment_length)
+                                            ))
                                         ),
 
                                  # for (int j=0; j<{segment_length}; j++)

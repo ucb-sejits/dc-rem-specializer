@@ -15,7 +15,10 @@ def dcRemoval(block_set, pfov_length):
     :param: pfov_length The length of the partial field of view
     :return: the result of the DC removal
     """
-    b = Array.array(segmented_spec(block_set, pfov_length) / pfov_length)
+    segmented_arr = segmented_spec(block_set, pfov_length)
+    print ("Segmented Array: ", segmented_arr)
+    print ("Segmented Array and divided: ", segmented_arr / pfov_length)
+    b = Array.array(segmented_arr / pfov_length)
     shape = block_set.shape
 
     return subtract(block_set.ravel(), b, block_set.size, b.size).reshape(shape)
@@ -47,18 +50,19 @@ segmented_spec = omp_redspec.LazyRemoval.from_function(add, "SegmentedSummationS
 
 def tile_mapper(func):
     """
-    Performs a tiled mapping. This is equivalent to the following using numpy
+    Returns a function that performs a tiled mapping. This is equivalent to the following using
+    numpy.
 
     >>> data1 = np.array([1] * 10)
     >>> data2 = np.tile([5, 7])
-    >>> output = func(x, y) for x, y in zip(data1, data2)
+    >>> output = [func(x, y) for x, y in zip(data1, data2)]
     """
     @wraps(func)
     @specialize(output=gen_array_output)
     def fn(a, b, size_a, size_b, output):
         modulus = size_a / size_b
         for i in range(size_a):
-            output[i] = func(b[i / modulus], a[i])
+            output[i] = func(a[i], b[i / modulus])
     return fn
 
 
