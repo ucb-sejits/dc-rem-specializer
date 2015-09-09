@@ -41,13 +41,11 @@ class TestDCRemovalSpecializer(unittest.TestCase):
 
         # Creating a sample dataset for the SEJITS tests
         sejits_block_set = Array.array(list(range(TOTAL_SIZE)))
-        print ("SEJITS: ", sejits_block_set)
         sejits_block_set = sejits_block_set.reshape(height, width)
         sejits_block_set = sejits_block_set.astype(np.float32)
 
         # Creating a sample dataset for the Python tests
         pyop_block_set = np.array(list(range(TOTAL_SIZE)))
-        print ("PYOP: ", pyop_block_set)
         pyop_block_set = pyop_block_set.reshape(height, width)
         pyop_block_set = pyop_block_set.astype(np.float32)
 
@@ -65,20 +63,59 @@ class TestDCRemovalSpecializer(unittest.TestCase):
 
         # Creating a sample dataset for the SEJITS tests
         sejits_block_set = Array.array(list(range(TOTAL_SIZE)))
-        print ("SEJITS: ", sejits_block_set)
         sejits_block_set = sejits_block_set.reshape(height, width)
         sejits_block_set = sejits_block_set.astype(np.float32)
 
         # Creating a sample dataset for the Python tests
         pyop_block_set = np.array(list(range(TOTAL_SIZE)))
-        print ("PYOP: ", pyop_block_set)
         pyop_block_set = pyop_block_set.reshape(height, width)
         pyop_block_set = pyop_block_set.astype(np.float32)
 
         python_result = dcRemPython(pyop_block_set, height, pfov_length).astype(np.float32)
         sejits_result = dcRemSejits(sejits_block_set, pfov_length, height).astype(np.float32)
 
-        print ("PYTHON Result: ", python_result)
-        print ("SEJITS Result: ", sejits_result)
+        self._check(python_result, sejits_result)
+
+    def test_range_of_hundred(self):
+
+        TOTAL_SIZE = 100
+        height = 20             # height: (number of rows, or column length)
+        width = 5               # width: (number of columns, or row length)
+        pfov_length = 4
+
+        # Creating a sample dataset for the SEJITS tests
+        sejits_block_set = Array.array(list(range(TOTAL_SIZE)))
+        sejits_block_set = sejits_block_set.reshape(height, width)
+        sejits_block_set = sejits_block_set.astype(np.float32)
+
+        # Creating a sample dataset for the Python tests
+        pyop_block_set = np.array(list(range(TOTAL_SIZE)))
+        pyop_block_set = pyop_block_set.reshape(height, width)
+        pyop_block_set = pyop_block_set.astype(np.float32)
+
+        python_result = dcRemPython(pyop_block_set, height, pfov_length).astype(np.float32)
+        sejits_result = dcRemSejits(sejits_block_set, pfov_length, height).astype(np.float32)
+
+        self._check(python_result, sejits_result)
+
+    def test_range_of_two_hundred(self):
+
+        TOTAL_SIZE = 200
+        height = 20             # height: (number of rows, or column length)
+        width = 10              # width: (number of columns, or row length)
+        pfov_length = 10
+
+        # Creating a sample dataset for the SEJITS tests
+        sejits_block_set = Array.array(list(range(TOTAL_SIZE)))
+        sejits_block_set = sejits_block_set.reshape(height, width)
+        sejits_block_set = sejits_block_set.astype(np.float32)
+
+        # Creating a sample dataset for the Python tests
+        pyop_block_set = np.array(list(range(TOTAL_SIZE)))
+        pyop_block_set = pyop_block_set.reshape(height, width)
+        pyop_block_set = pyop_block_set.astype(np.float32)
+
+        python_result = dcRemPython(pyop_block_set, height, pfov_length).astype(np.float32)
+        sejits_result = dcRemSejits(sejits_block_set, pfov_length, height).astype(np.float32)
 
         self._check(python_result, sejits_result)
