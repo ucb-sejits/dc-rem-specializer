@@ -7,6 +7,8 @@
 
 from pyop import matvectorized
 from numpy import tile
+from ctree.util import Timer
+import numpy as np
 
 
 def dcRemoval(block_set, height, length):
@@ -28,3 +30,34 @@ def dcRemoval(block_set, height, length):
         return (pfovs - dc_values_rep).reshape((height, -1))
 
     return dcRem(block_set)
+
+
+def main():
+    # TOTAL_SIZE = 12000000
+    # h = 12000                # height (number of rows, or column length)
+    # w = 1000                 # width (number of columns, or row length)
+    # length = 12
+
+    # Need more size? Try this!
+    TOTAL_SIZE = 500000000
+    h = 500000             # height (number of rows, or column length)
+    w = 1000               # width (number of columns, or row length)
+    length = 50000
+
+    #
+    # Testing Script
+    #
+
+    block_set = np.array(list(range(TOTAL_SIZE)))  # sample dataset
+    block_set = block_set.reshape(h, w)
+    block_set = block_set.astype(np.float32)
+
+    with Timer() as t1:
+        result = dcRemoval(block_set, h, length)
+    time_total = t1.interval
+
+    print "PYTHON dcRemoval Time: ", time_total, " seconds"
+    print "RESULT: ", result
+
+if __name__ == '__main__':
+    main()

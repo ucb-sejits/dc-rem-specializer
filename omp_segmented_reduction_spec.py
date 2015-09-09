@@ -93,115 +93,40 @@ class LazyRemoval(LazySpecializedFunction):
         responsible_size = int(input_length / segment_length / width)
 
         reduction_template = StringTemplate(r"""
-        #include <omp.h>
-        #include <stdio.h>
-
-        void reducer(float* input_arr, float* output_arr) {
-
+        {
+            #pragma omp parallel for
             for (int k = 0; k < $width; k++) {
 
                 #pragma omp parallel for
                 for (int i = 0; i < $size; i++) {
 
-                    float result = input_arr[i * $seg_length * $width + k];
-                    for (int j = 1; j < $seg_length; j++) {
-                        result = apply(result, input_arr[i * $seg_length * $width + j * $width + k]);
+                    float result = input_arr[i * $length * $width + k];
+                    for (int j = 1; j < $length; j++) {
+                        result = apply(result, input_arr[i * $length * $width + j * $width + k]);
                     }
                     output_arr[i * $width + k] = result;
                 }
             }
         }
         """, {
-              # 'func_name': String(REDUCTION_FUNC_NAME),
-              # 'in_ptr': input_pointer(),
-              # 'out_ptr': output_pointer(),
               'width': Constant(width),
               'size': Constant(responsible_size),
-              'seg_length': Constant(segment_length)
+              'length': Constant(segment_length)
               })
 
-        reducer = CFile("generated", [apply_one, reduction_template])
-
-        # TODO: make this a string template...s
-        # reducer = CFile("generated", [
-        #     CppInclude("omp.h"),
-        #     CppInclude("stdio.h"),
-        #     apply_one,
-        #     FunctionDecl(None, REDUCTION_FUNC_NAME,
-        #                  params=[
-        #                      SymbolRef("input_arr", input_pointer()),
-        #                      SymbolRef("output_arr", output_pointer())
-        #                  ],
-        #                  defn=[
-        #                      For(Assign(SymbolRef('k', ct.c_int()), Constant(0)),
-        #                          Lt(SymbolRef('k'), Constant(width)),
-        #                          PostInc(SymbolRef('i'))
-        #                          [
-        #                          For(Assign(SymbolRef('i', ct.c_int()), Constant(0)),
-        #                              Lt(SymbolRef('i'), Constant(responsible_size)),
-        #                              PostInc(SymbolRef('i')),
-        #                              [
-        # {TYPE} result = input_arr[0];
-        #                              Assign(SymbolRef('result', inner_type),
-        #                                     ArrayRef(SymbolRef('input_arr'), Mul(
-        #                                         SymbolRef('i'),
-        #                                         Constant(segment_length)
-        #                                     ))
-        #                                     ),
-
-        # for (int j=0; j<{segment_length}; j++)
-        #                              For(Assign(SymbolRef('j', ct.c_int()), Constant(1)),
-        #                                  Lt(SymbolRef('j'), Constant(segment_length)),
-        #                                  PostInc(SymbolRef('j')),
-        #                                  [
-        # result = apply(result, input_arr[i * {segment_length} + j])
-        #                                  Assign(
-        #                                      SymbolRef('result'),
-        #                                      FunctionCall(SymbolRef('apply'),
-        #                                                   [
-        #                                          SymbolRef('result'),
-        #                                          ArrayRef(
-        #                                              SymbolRef('input_arr'),
-        #                                              Add(
-        #                                                  Add(
-        #                                                      Mul(
-        #                                                          SymbolRef('i'),
-        #                                                          Constant(segment_length * width)
-        #                                                      ),
-        #                                                      Mul(
-        #                                                          SymbolRef('j'),
-        #                                                          Constant(width)
-        #                                                      )
-        #                                                  ),
-        #                                                  SymbolRef('k')
-        #                                              )
-        #                                          )
-        #                                      ])
-        #                                  )
-        #                              ]
-        #                              ),
-
-        # output_arr[i] = result;
-        #                              Assign(
-        #                                  ArrayRef(SymbolRef('output_arr'),
-        #                                           Add(
-        #                                      Mul(
-        #                                          SymbolRef('i'),
-        #                                          Constant(width)
-        #                                      ),
-        #                                      SymbolRef('k')
-        #                                  )
-        #                                  ),
-        #                                  SymbolRef('result')
-        #                              ),
-
-        #                          ],
-        #                              'omp parallel for'
-        #                          )
-        #                      ])
-        #                  ]
-        #                  )
-        # ], 'omp')
+        reducer = CFile("generated", [
+            CppInclude("omp.h"),
+            CppInclude("stdio.h"),
+            apply_one,
+            FunctionDecl(None, REDUCTION_FUNC_NAME,
+                params=[
+                    SymbolRef("input_arr", input_pointer()),
+                    SymbolRef("output_arr", output_pointer())
+                ],
+                defn=[
+                    reduction_template
+                ])
+        ])
 
         return [reducer]
 

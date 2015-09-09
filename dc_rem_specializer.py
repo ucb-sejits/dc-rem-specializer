@@ -1,6 +1,7 @@
 import omp_segmented_reduction_spec as omp_redspec
 from cstructures.array import Array, specialize, wraps, gen_array_output
-
+from ctree.util import Timer
+import numpy as np
 
 #
 # DC Removal
@@ -73,3 +74,35 @@ def tile_mapper(func):
 @tile_mapper
 def subtract(x, y):
     return x - y
+
+
+def main():
+    # TOTAL_SIZE = 12000000
+    # h = 12000                # height (number of rows, or column length)
+    # w = 1000                 # width (number of columns, or row length)
+    # length = 12
+
+    # Need more size? Try this!
+    TOTAL_SIZE = 500000000
+    h = 500000             # height (number of rows, or column length)
+    w = 1000               # width (number of columns, or row length)
+    length = 50000
+
+    #
+    # Testing Script
+    #
+
+    block_set = Array.array(list(range(TOTAL_SIZE)))  # sample dataset
+    block_set = block_set.reshape(h, w)
+    block_set = block_set.astype(np.float32)
+
+    with Timer() as t1:
+        result = dcRemoval(block_set, length, h)
+
+    time_total = t1.interval
+
+    print "SEJITS dcRemoval Time: ", time_total, " seconds"
+    print "RESULT: ", result
+
+if __name__ == '__main__':
+    main()
