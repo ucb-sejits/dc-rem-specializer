@@ -11,11 +11,12 @@ from numpy import tile
 
 def dcRemoval(block_set, height, length):
 
-    @matvectorized((height, -1), order='F')  # <- what does that do?
+    @matvectorized((height, -1), order='F')
     def dcRem(block_set):
 
         # Partial field of views, one per row
         pfovs = block_set.reshape((-1, length))
+        print ("PFOVS: ", pfovs)
 
         # Sum across rows to get the average of each pfov.
         dc_values = pfovs.sum(1) / length

@@ -7,7 +7,7 @@ from cstructures.array import Array, specialize, wraps, gen_array_output
 #
 
 
-def dcRemoval(block_set, pfov_length):
+def dcRemoval(block_set, pfov_length, height):
     """
     Performs DC Removal with codegenerated SEJITS code.
 
@@ -15,13 +15,14 @@ def dcRemoval(block_set, pfov_length):
     :param: pfov_length The length of the partial field of view
     :return: the result of the DC removal
     """
-    segmented_arr = segmented_spec(block_set, pfov_length)
+    segmented_arr = segmented_spec(block_set, pfov_length, height)
     print ("Segmented Array: ", segmented_arr)
     print ("Segmented Array and divided: ", segmented_arr / pfov_length)
     b = Array.array(segmented_arr / pfov_length)
     shape = block_set.shape
 
-    return subtract(block_set.ravel(), b, block_set.size, b.size).reshape(shape)
+    return subtract(block_set.ravel(), b, block_set.size, b.size,
+                    block_set.size // height).reshape(shape)
 
 
 #
@@ -59,10 +60,19 @@ def tile_mapper(func):
     """
     @wraps(func)
     @specialize(output=gen_array_output)
-    def fn(a, b, size_a, size_b, output):
+    def fn(a, b, size_a, size_b, width, output):
         modulus = size_a / size_b
         for i in range(size_a):
-            output[i] = func(a[i], b[i / modulus])
+            # output[i] = func(a[i], b[i / modulus])
+            for j in range(modulus):
+                for k in range(width):
+                    index = i * width * modulus + j * width + k
+                    output[index] = func(a[index], b[i * width + k])
+                    # output[i * width + k] = func(a[i * width + k],
+                                                 # b[(i * width + (k * modulus)) / modulus])
+            if i + 1 >= size_a / (width * modulus):
+                break
+            # output[i] = func(a[i], b[(i + (i % width) * modulus) / modulus])
     return fn
 
 
