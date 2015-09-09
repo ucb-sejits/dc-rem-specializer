@@ -179,5 +179,5 @@ def main():
     print ("Output Array: ", result)
     print ("Time Taken: ", end - start, " sec")
 
-# if __name__ == '__main__':
-#     main()
+if __name__ == '__main__':
+    main()

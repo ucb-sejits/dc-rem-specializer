@@ -33,20 +33,18 @@ def dcRemoval(block_set, height, length):
 
 
 def main():
+
+    # Smaller dataset
     # TOTAL_SIZE = 12000000
     # h = 12000                # height (number of rows, or column length)
     # w = 1000                 # width (number of columns, or row length)
     # length = 12
 
-    # Need more size? Try this!
+    # Larger dataset
     TOTAL_SIZE = 500000000
-    h = 500000             # height (number of rows, or column length)
-    w = 1000               # width (number of columns, or row length)
+    h = 500000                 # height (number of rows, or column length)
+    w = 1000                   # width (number of columns, or row length)
     length = 50000
-
-    #
-    # Testing Script
-    #
 
     block_set = np.array(list(range(TOTAL_SIZE)))  # sample dataset
     block_set = block_set.reshape(h, w)
