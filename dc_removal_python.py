@@ -1,5 +1,5 @@
 ######################################################
-#  Filename: pL_func_comparison.py                   #
+#  Filename: dc_removal_python.py                    #
 #  Description: This file contains the benchark DC   #
 #               Removal algorithm, using the PyOP    #
 #               library.                             #
