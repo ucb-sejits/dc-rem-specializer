@@ -1,8 +1,8 @@
 import unittest
 import numpy as np
 from cstructures.array import Array
-from dc_rem_specializer import dcRemoval as dcRemSejits
-from pL_func_comparison import dcRemoval as dcRemPython
+from dc_removal.dc_rem_specializer import dcRemoval as dcRemSejits
+from dc_removal.pL_func_comparison import dcRemoval as dcRemPython
 
 
 class TestDCRemovalSpecializer(unittest.TestCase):
