@@ -72,9 +72,13 @@ class TestDCRemovalSpecializer(unittest.TestCase):
         pyop_block_set = pyop_block_set.reshape(height, width)
         pyop_block_set = pyop_block_set.astype(np.float32)
 
-        python_result = dcRemPython(pyop_block_set, height, pfov_length).astype(np.float32)
+        python_result = dcRemPython(pyop_block_set.flatten(1), height, pfov_length).astype(
+            np.float32).reshape((height, width), order='F').astype(np.int32)
         sejits_result = np.array(
-            dcRemSejits(sejits_block_set, pfov_length, height)).astype(np.float32)
+            dcRemSejits(sejits_block_set.flatten(), pfov_length, height)).astype(
+            np.float32).reshape((height, width)).astype(np.int32)
+
+        print sejits_result
 
         self._check(python_result, sejits_result)
 
@@ -95,9 +99,11 @@ class TestDCRemovalSpecializer(unittest.TestCase):
         pyop_block_set = pyop_block_set.reshape(height, width)
         pyop_block_set = pyop_block_set.astype(np.float32)
 
-        python_result = dcRemPython(pyop_block_set, height, pfov_length).astype(np.float32)
+        python_result = dcRemPython(pyop_block_set.flatten(1), height, pfov_length).astype(
+            np.float32).reshape((height, width), order='F')
         sejits_result = np.array(
-            dcRemSejits(sejits_block_set, pfov_length, height)).astype(np.float32)
+            dcRemSejits(sejits_block_set.flatten(), pfov_length, height)).astype(
+            np.float32).reshape((height, width))
 
         self._check(python_result, sejits_result)
 
@@ -118,9 +124,11 @@ class TestDCRemovalSpecializer(unittest.TestCase):
         pyop_block_set = pyop_block_set.reshape(height, width)
         pyop_block_set = pyop_block_set.astype(np.float32)
 
-        python_result = dcRemPython(pyop_block_set, height, pfov_length).astype(np.float32)
+        python_result = dcRemPython(pyop_block_set.flatten(1), height, pfov_length).astype(
+            np.float32).reshape((height, width), order='F')
         sejits_result = np.array(
-            dcRemSejits(sejits_block_set, pfov_length, height)).astype(np.float32)
+            dcRemSejits(sejits_block_set.flatten(), pfov_length, height)).astype(
+            np.float32).reshape((height, width))
 
         self._check(python_result, sejits_result)
 
@@ -141,8 +149,10 @@ class TestDCRemovalSpecializer(unittest.TestCase):
         pyop_block_set = pyop_block_set.reshape(height, width)
         pyop_block_set = pyop_block_set.astype(np.int32)
 
-        python_result = dcRemPython(pyop_block_set, height, pfov_length).astype(np.int32)
+        python_result = dcRemPython(pyop_block_set.flatten(1), height, pfov_length).astype(
+            np.float32).reshape((height, width), order='F').astype(np.int32)
         sejits_result = np.array(
-            dcRemSejits(sejits_block_set, pfov_length, height)).astype(np.int32)
+            dcRemSejits(sejits_block_set.flatten(), pfov_length, height)).astype(
+            np.float32).reshape((height, width)).astype(np.int32)
 
         self._check(python_result, sejits_result)

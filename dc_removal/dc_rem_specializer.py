@@ -10,18 +10,18 @@ import numpy as np
 
 def dcRemoval(block_set, pfov_length, height):
     """
-    Performs DC Removal with codegenerated SEJITS code.
+    Performs DC Removal with codegenerated SEJITS code. Input should be a flattened (1-D) vector.
 
     :param: block_set The dataset for the DC removal
     :param: pfov_length The length of the partial field of view
     :return: the result of the DC removal
     """
     shape = block_set.shape
-    segmented_arr = segmented_spec(block_set.flatten(), pfov_length, height)
+    segmented_arr = segmented_spec(block_set, pfov_length, height)
     b = Array.array(segmented_arr / pfov_length)
 
     return subtract(block_set.ravel(), b, block_set.size, b.size,
-                    block_set.size // height).reshape(shape)
+                    block_set.size // height).reshape(shape, order='C')
 
 
 #
