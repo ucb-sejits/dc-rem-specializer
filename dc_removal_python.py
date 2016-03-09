@@ -37,10 +37,10 @@ def dcRemoval(block_set, height, length):
 def main():
 
     # Smaller dataset
-    TOTAL_SIZE = 12000000
+    TOTAL_SIZE = 120000000
     h = 12000                # height (number of rows, or column length)
-    w = 1000                 # width (number of columns, or row length)
-    length = 12
+    w = 10000                 # width (number of columns, or row length)
+    length = 10000
 
     # Larger dataset
     # TOTAL_SIZE = 500000000

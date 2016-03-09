@@ -107,7 +107,7 @@ def main():
     block_set = block_set.astype(np.float32)
 
     start_time = time.time()
-    result = dcRemoval(block_set.flatten(), length, h).reshape(h, w)
+    result = np.array(dcRemoval(block_set.flatten(), length, h).reshape(h, w))
     time_total = time.time() - start_time
 
     print "SEJITS dcRemoval Time: ", time_total, " seconds"
