@@ -106,7 +106,7 @@ def main():
     block_set = block_set.astype(np.float32)
 
     with Timer() as t1:
-        result = dcRemoval(block_set, length, h)
+        result = dcRemoval(block_set.flatten(), length, h).reshape(h, w)
 
     time_total = t1.interval
 

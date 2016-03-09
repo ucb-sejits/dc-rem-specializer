@@ -51,7 +51,7 @@ def main():
     block_set = block_set.astype(np.float32)
 
     with Timer() as t1:
-        result = dcRemoval(block_set, h, length)
+        result = dcRemoval(block_set.flatten(1), h, length).reshape((h, w), order='F')
     time_total = t1.interval
 
     print "PYTHON dcRemoval Time: ", time_total, " seconds"
