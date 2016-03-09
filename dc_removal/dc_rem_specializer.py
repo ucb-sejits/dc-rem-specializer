@@ -16,9 +16,9 @@ def dcRemoval(block_set, pfov_length, height):
     :param: pfov_length The length of the partial field of view
     :return: the result of the DC removal
     """
-    segmented_arr = segmented_spec(block_set, pfov_length, height)
-    b = Array.array(segmented_arr / pfov_length)
     shape = block_set.shape
+    segmented_arr = segmented_spec(block_set.flatten(), pfov_length, height)
+    b = Array.array(segmented_arr / pfov_length)
 
     return subtract(block_set.ravel(), b, block_set.size, b.size,
                     block_set.size // height).reshape(shape)
@@ -51,7 +51,7 @@ segmented_spec = omp_redspec.LazyRemoval.from_function(add, "SegmentedSummationS
 def tile_mapper(func):
     """
     Returns a function that performs a tiled mapping. This is equivalent to the following using
-    numpy.
+    numpy. (a is the bigger one) <--- TODO; check this
 
     >>> data1 = np.array([1] * 10)
     >>> data2 = np.tile([5, 7])
@@ -60,14 +60,25 @@ def tile_mapper(func):
     @wraps(func)
     @specialize(output=gen_array_output)
     def fn(a, b, size_a, size_b, width, output):
+
+        # size_b is the number of pfovs
+        # modulus is the length of pfovs
+
+        # NEW
         modulus = size_a / size_b
-        for i in range(size_a):
+        for i in range(size_b):
             for j in range(modulus):
-                for k in range(width):
-                    index = i * width * modulus + j * width + k
-                    output[index] = func(a[index], b[i * width + k])
-            if i + 1 >= size_a / (width * modulus):
-                break
+                output[i * modulus + j] = func(a[i * modulus + j], b[i])
+
+        # OLD
+        # modulus = size_a / size_b
+        # for i in range(size_a):
+        #     for j in range(modulus):
+        #         for k in range(width):
+        #             index = i * width * modulus + j * width + k
+        #             output[index] = func(a[index], b[i * width + k])
+        #     if i + 1 >= size_a / (width * modulus):
+        #         break
     return fn
 
 

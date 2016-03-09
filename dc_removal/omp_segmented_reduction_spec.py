@@ -71,9 +71,9 @@ class LazyRemoval(LazySpecializedFunction):
 
         input_length = np.prod(input_data.size)
         segment_length = np.prod(input_data.segment_length)
-        data_height = np.prod(input_data.data_height)
+        # data_height = np.prod(input_data.data_height)
 
-        inner_type = get_c_type_from_numpy_dtype(input_data.dtype)()
+        inp_type = get_c_type_from_numpy_dtype(input_data.dtype)()
         output_size = input_data.size // segment_length
         input_pointer = np.ctypeslib.ndpointer(input_data.dtype, input_data.ndim, input_data.shape)
         output_pointer = np.ctypeslib.ndpointer(input_data.dtype, 1, (output_size, ))
@@ -82,36 +82,31 @@ class LazyRemoval(LazySpecializedFunction):
         apply_one = PyBasicConversions().visit(py_ast).find(FunctionDecl)
 
         # apply_one = PyBasicConversions().visit(py_ast.body[0])
-        apply_one.return_type = inner_type
-        apply_one.params[0].type = inner_type
-        apply_one.params[1].type = inner_type
+        apply_one.return_type = inp_type
+        apply_one.params[0].type = inp_type
+        apply_one.params[1].type = inp_type
 
         # Naming our kernel method
         apply_one.name = 'apply'
 
-        width = int(input_length / data_height)
-        responsible_size = int(input_length / segment_length / width)
+        # width = int(input_length / data_height)
+        # responsible_size = int(input_length / segment_length / width)
+        num_pfovs = int(input_length / segment_length)
 
         reduction_template = StringTemplate(r"""
         {
             #pragma omp parallel for
-            for (int k = 0; k < $width; k++) {
-
-                #pragma omp parallel for
-                for (int i = 0; i < $size; i++) {
-
-                    float result = input_arr[i * $length * $width + k];
-                    for (int j = 1; j < $length; j++) {
-                        result = apply(result, input_arr[i * $length * $width + j * $width + k]);
-                    }
-                    output_arr[i * $width + k] = result;
+            for (int i = 0; i < $num_pfovs; i++) {
+                float result = 0.0;
+                for (int j = 0; j < $pfov_length; j++) {
+                    result = apply(result, input_arr[i * $pfov_length + j]);
                 }
+                output_arr[i] = result;
             }
         }
         """, {
-              'width': Constant(width),
-              'size': Constant(responsible_size),
-              'length': Constant(segment_length)
+              'num_pfovs': Constant(num_pfovs),
+              'pfov_length': Constant(segment_length)
               })
 
         reducer = CFile("generated", [
