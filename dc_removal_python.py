@@ -58,6 +58,7 @@ def main():
 
     print "PYTHON dcRemoval Time: ", time_total, " seconds"
     print "RESULT: ", result
+    return result
 
 if __name__ == '__main__':
     main()
