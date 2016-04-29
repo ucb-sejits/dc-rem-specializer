@@ -17,9 +17,11 @@ def dcRemoval(block_set, pfov_length, height):
     :param: pfov_length The length of the partial field of view
     :return: the result of the DC removal
     """
+    # print "dcRemoval([block_set], {0}, {1})".format(pfov_length, height)
     shape = block_set.shape
     segmented_arr = segmented_spec(block_set, pfov_length, height)
-    b = Array.array(segmented_arr / pfov_length)
+    b = Array.array(segmented_arr / (pfov_length * 1.0))
+    # print b
 
     return subtract(block_set.ravel(), b, block_set.size, b.size,
                     block_set.size // height).reshape(shape, order='C')
@@ -91,10 +93,10 @@ def subtract(x, y):
 def main():
 
     # Smaller Dataset
-    TOTAL_SIZE = 120000000
-    h = 12000                # height (number of rows, or column length)
-    w = 10000                 # width (number of columns, or row length)
-    length = 10000
+    h = 1200                # height (number of rows, or column length)
+    w = 1000                # width (number of columns, or row length)
+    TOTAL_SIZE = h * w
+    length = 100
 
     # Larger Dataset
     # TOTAL_SIZE = 500000000

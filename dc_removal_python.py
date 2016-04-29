@@ -17,7 +17,6 @@ def dcRemoval(block_set, height, length):
 
     @matvectorized((height, -1), order='F')
     def dcRem(block_set):
-
         # Partial field of views, one per row
         pfovs = block_set.reshape((-1, length))
 
