@@ -323,18 +323,15 @@ def dcRemovalOperatorSejits(image_shape, blocks):
     op_size = length * h * num
     op_shape = (op_size, op_size)
 
-
+    ## @Mihir: this is where your code was inserted
     sejits_dcrem = lambda block_set: dcRemoval(Array.array(block_set), length, h)
 
     @matvectorized((h, -1), order = 'F')
     def dcRem(block_set):
+        ## @Mihir: this is where your code was inserted
         return sejits_dcrem(block_set)
 
-
-
-    ## @Mihir: this is where your code was inserted
     return LinearOperator(op_shape, dcRem, dcRem)
-    #return LinearOperator(op_shape, dcRem, dcRem)
 
 def dcRemovalOperatorPyOp(image_shape, blocks):
     ''' Removes the DC components of an MPI signal.

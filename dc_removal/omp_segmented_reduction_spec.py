@@ -98,7 +98,7 @@ class LazyRemoval(LazySpecializedFunction):
 
         reduction_template = StringTemplate(r"""
         {
-            // #pragma omp parallel for
+            #pragma omp parallel for
             for (int i = 0; i < $num_pfovs; i++) {
                 double result = 0.0;
                 for (int j = 0; j < $pfov_length; j++) {
