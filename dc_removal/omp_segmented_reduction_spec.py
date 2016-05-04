@@ -100,8 +100,10 @@ class LazyRemoval(LazySpecializedFunction):
         {
             #pragma omp parallel for
             for (int i = 0; i < $num_pfovs; i++) {
+                int j;
                 double result = 0.0;
-                for (int j = 0; j < $pfov_length; j++) {
+                #pragma omp parallel for reduction(+:result)
+                for (j = 0; j < $pfov_length; j++) {
                     result += input_arr[i * $pfov_length + j];
                 }
                 output_arr[i] = result;
