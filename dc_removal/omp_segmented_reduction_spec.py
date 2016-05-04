@@ -93,13 +93,16 @@ class LazyRemoval(LazySpecializedFunction):
         # responsible_size = int(input_length / segment_length / width)
         num_pfovs = int(input_length / segment_length)
 
+        print ("Segment Length", segment_length)
+        print ("NUM pofvs", num_pfovs)
+
         reduction_template = StringTemplate(r"""
         {
-            #pragma omp parallel for
+            // #pragma omp parallel for
             for (int i = 0; i < $num_pfovs; i++) {
-                float result = 0.0;
+                double result = 0.0;
                 for (int j = 0; j < $pfov_length; j++) {
-                    result = apply(result, input_arr[i * $pfov_length + j]);
+                    result += input_arr[i * $pfov_length + j];
                 }
                 output_arr[i] = result;
             }

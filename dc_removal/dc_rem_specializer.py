@@ -17,11 +17,30 @@ def dcRemoval(block_set, pfov_length, height):
     :param: pfov_length The length of the partial field of view
     :return: the result of the DC removal
     """
+    # print "SEJITS input shape", block_set.shape
+    # block_set = block_set.reshape((-1, pfov_length))
+    # print "SEJITS input shape", block_set.shape
+
     # print "dcRemoval([block_set], {0}, {1})".format(pfov_length, height)
+    # print "Block Set Sum SEJITS:", sum(block_set.flatten(0))
     shape = block_set.shape
-    segmented_arr = segmented_spec(block_set, pfov_length, height)
+    segmented_arr = segmented_spec(block_set.reshape((-1, pfov_length)), pfov_length, height)
+    # print "PFOV Len SEJITS", pfov_length
+
+    # print "SEJITS NEW SHAPE", block_set.reshape((-1, pfov_length)).shape
+    # segmented_arr = block_set.reshape((-1, pfov_length)).sum(1)
+    # print "SEJITS:", sum(segmented_arr)
+    # print "SEJITS Input:", block_set.flatten()[:5]
+
+    ## The important one
+    # print "SEJITS DC Values:", segmented_arr[:5]
+
+
+    # print "PFOV Length SEJITS:", pfov_length
+    # print "Height SEJITS:", height
+
     b = Array.array(segmented_arr / (pfov_length * 1.0))
-    # print b
+
 
     return subtract(block_set.ravel(), b, block_set.size, b.size,
                     block_set.size // height).reshape(shape, order='C')
