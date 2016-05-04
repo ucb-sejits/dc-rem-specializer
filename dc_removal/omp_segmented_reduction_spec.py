@@ -126,7 +126,7 @@ class LazyRemoval(LazySpecializedFunction):
                 defn=[
                     reduction_template
                 ])
-        ])
+        ], 'omp')
 
         return [reducer]
 
