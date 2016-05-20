@@ -43,9 +43,7 @@ class ConcreteRemoval(ConcreteSpecializedFunction):
     def __call__(self, input_arr, stride_length, height):
 
         # Creating an output array; we don't want to mutate the original input data
-        # print ("input array size: ", input_arr.size)
         output_arr = np.zeros((input_arr.size, )).astype(input_arr.dtype)
-        # print ("SHAPE: ", output_arr.shape)
         self._c_function(input_arr, output_arr)
         return output_arr.reshape(input_arr.shape)
 
@@ -89,13 +87,7 @@ class LazyRemoval(LazySpecializedFunction):
 
         # Naming our kernel method
         apply_one.name = 'apply'
-
-        # width = int(input_length / data_height)
-        # responsible_size = int(input_length / segment_length / width)
         num_pfovs = int(input_length / segment_length)
-
-        # print ("Segment Length", segment_length)
-        # print ("NUM pfovs", num_pfovs)
 
         reduction_template = StringTemplate(r"""
         {
@@ -118,8 +110,8 @@ class LazyRemoval(LazySpecializedFunction):
             }
         }
         """, {
-              'num_pfovs': Constant(num_pfovs),
-              'pfov_length': Constant(segment_length)
+                'num_pfovs': Constant(num_pfovs),
+                'pfov_length': Constant(segment_length)
               })
 
         reducer = CFile("generated", [
@@ -136,7 +128,6 @@ class LazyRemoval(LazySpecializedFunction):
                 ])
         ], 'omp')
 
-        print ("Got reducer")
         return [reducer]
 
     def finalize(self, transform_result, program_config):
@@ -149,7 +140,6 @@ class LazyRemoval(LazySpecializedFunction):
         input_pointer = np.ctypeslib.ndpointer(input_data.dtype, input_data.ndim, input_data.shape)
         output_pointer = np.ctypeslib.ndpointer(input_data.dtype, 1, (input_data.size, ))
 
-        # print ("SHAPE: ", output_pointer.shape)
         entry_type = CFUNCTYPE(None, input_pointer, output_pointer)
 
         # Instantiation of the concrete function
