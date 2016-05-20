@@ -25,6 +25,12 @@ def dcRemoval(block_set, pfov_length, height):
     # print "Block Set Sum SEJITS:", sum(block_set.flatten(0))
     shape = block_set.shape
     segmented_arr = segmented_spec(block_set.reshape((-1, pfov_length)), pfov_length, height)
+
+    ## TEMP
+
+    return segmented_arr.reshape(shape, order='C')
+
+
     # print "PFOV Len SEJITS", pfov_length
 
     # print "SEJITS NEW SHAPE", block_set.reshape((-1, pfov_length)).shape
@@ -39,11 +45,11 @@ def dcRemoval(block_set, pfov_length, height):
     # print "PFOV Length SEJITS:", pfov_length
     # print "Height SEJITS:", height
 
-    b = Array.array(segmented_arr / (pfov_length * 1.0))
+    # b = Array.array(segmented_arr / (pfov_length * 1.0))
 
 
-    return subtract(block_set.ravel(), b, block_set.size, b.size,
-                    block_set.size // height).reshape(shape, order='C')
+    # return subtract(block_set.ravel(), b, block_set.size, b.size,
+    #                 block_set.size // height).reshape(shape, order='C')
 
 
 #

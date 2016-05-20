@@ -43,9 +43,11 @@ class ConcreteRemoval(ConcreteSpecializedFunction):
     def __call__(self, input_arr, stride_length, height):
 
         # Creating an output array; we don't want to mutate the original input data
-        output_arr = np.zeros(input_arr.size // stride_length).astype(input_arr.dtype)
+        # print ("input array size: ", input_arr.size)
+        output_arr = np.zeros((input_arr.size, )).astype(input_arr.dtype)
+        # print ("SHAPE: ", output_arr.shape)
         self._c_function(input_arr, output_arr)
-        return output_arr
+        return output_arr.reshape(input_arr.shape)
 
 
 class LazyRemoval(LazySpecializedFunction):
@@ -74,9 +76,8 @@ class LazyRemoval(LazySpecializedFunction):
         # data_height = np.prod(input_data.data_height)
 
         inp_type = get_c_type_from_numpy_dtype(input_data.dtype)()
-        output_size = input_data.size // segment_length
         input_pointer = np.ctypeslib.ndpointer(input_data.dtype, input_data.ndim, input_data.shape)
-        output_pointer = np.ctypeslib.ndpointer(input_data.dtype, 1, (output_size, ))
+        output_pointer = np.ctypeslib.ndpointer(input_data.dtype, 1, (input_data.size, ))
 
         # Get the kernel function, apply_one
         apply_one = PyBasicConversions().visit(py_ast).find(FunctionDecl)
@@ -93,20 +94,27 @@ class LazyRemoval(LazySpecializedFunction):
         # responsible_size = int(input_length / segment_length / width)
         num_pfovs = int(input_length / segment_length)
 
-        print ("Segment Length", segment_length)
-        print ("NUM pofvs", num_pfovs)
+        # print ("Segment Length", segment_length)
+        # print ("NUM pfovs", num_pfovs)
 
         reduction_template = StringTemplate(r"""
         {
             #pragma omp parallel for
             for (int i = 0; i < $num_pfovs; i++) {
-                int j;
-                double result = 0.0;
-                #pragma omp parallel for reduction(+:result)
-                for (j = 0; j < $pfov_length; j++) {
-                    result += input_arr[i * $pfov_length + j];
+
+                /* Compute sum */
+                double avg = 0.0;
+                #pragma omp parallel for reduction(+:avg)
+                for (int j = 0; j < $pfov_length; j++) {
+                    avg += input_arr[i * $pfov_length + j];
                 }
-                output_arr[i] = result;
+                avg = avg / $pfov_length;
+
+                /* Handle the division */
+                #pragma omp parallel for
+                for (int j = 0; j < $pfov_length; j++) {
+                    output_arr[i * $pfov_length + j] = input_arr[i * $pfov_length + j] - avg;
+                }
             }
         }
         """, {
@@ -128,6 +136,7 @@ class LazyRemoval(LazySpecializedFunction):
                 ])
         ], 'omp')
 
+        print ("Got reducer")
         return [reducer]
 
     def finalize(self, transform_result, program_config):
@@ -135,14 +144,12 @@ class LazyRemoval(LazySpecializedFunction):
 
         # Get the argument type data
         input_data = program_config[0]
-        segment_length = np.prod(input_data.segment_length)
-        # data_height = input_data.data_height
-        output_size = input_data.size // segment_length
 
         # Create the pointers for the input and output data types
         input_pointer = np.ctypeslib.ndpointer(input_data.dtype, input_data.ndim, input_data.shape)
-        output_pointer = np.ctypeslib.ndpointer(input_data.dtype, 1, (output_size, ))
+        output_pointer = np.ctypeslib.ndpointer(input_data.dtype, 1, (input_data.size, ))
 
+        # print ("SHAPE: ", output_pointer.shape)
         entry_type = CFUNCTYPE(None, input_pointer, output_pointer)
 
         # Instantiation of the concrete function
