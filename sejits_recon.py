@@ -502,7 +502,7 @@ def dc_recon(pfovimage, tikhonov = 0.0, smooth = 0.0,
     S_hat = blockDiag([S] * frames)
 
     vec_size = shape[0]*shape[1]*shape[2]
-    A_hat_pyop = vstack(
+    A_hat_pyop = vstack(    # not actually A_hat blockDiag is A_hat
         [ blockDiag([Apyop] * frames),
           sqrt(tikhonov)*eye((vec_size, vec_size)),
           sqrt(smooth)*convolve(kernel = kernel, shape = shape, order = 'F')
@@ -515,6 +515,7 @@ def dc_recon(pfovimage, tikhonov = 0.0, smooth = 0.0,
         ])
 
 
+    # NOTE: If you're going to get rid of convultion, make sure to make use 1*vec_size instead of 2*vec_size
     planes_vec = hstack([f.flatten(1) for f in planes])
     b = hstack( [planes_vec, zeros((2*vec_size, ))] )
 
