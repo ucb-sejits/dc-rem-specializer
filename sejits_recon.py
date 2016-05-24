@@ -133,6 +133,10 @@ def fista(A, b, pL, initial = None,
     t1 = 1
 
     ## Initialize residual using empty guess
+
+    # print "A's shape: ", A.shape
+    # print "b's shape: ", b.shape
+    # print "x1's shape: ", x1.shape
     residual = [ norm(A.dot(x1) - b) / norm(b) ]
 
     i = 0
@@ -174,6 +178,7 @@ def fista(A, b, pL, initial = None,
         ## Set up for next iteration.
         x1 = x2
         t1 = t2
+        print "Completed FISTA iteration"
 
     ## z is returned because it is the last calculated value that adheres
     ## to any constraints inside pL (positivity).
@@ -194,6 +199,25 @@ def __toImageShapeAndBlocks(image_shape, blocks):
     length, shift = blocks
 
     image_shape = __ImageShape(*image_shape)
+    blocks = __Blocks(length, h, int((w - length) / shift) + 1, shift)
+
+    if any(x <= 0 for x in image_shape):
+        raise ValueError("Image shape contains a non-positive. {}".
+                         format(image_shape))
+
+    if any(x <= 0 for x in blocks):
+        raise ValueError("blocks contains a non-positive. {}".
+                         format(blocks))
+
+    return image_shape, blocks
+
+
+def __toImageShapeAndBlocksSejits(image_shape, blocks):
+
+    h, w, num_frames = image_shape
+    length, shift = blocks
+
+    image_shape = __ImageShape(*(image_shape[:2]))
     blocks = __Blocks(length, h, int((w - length) / shift) + 1, shift)
 
     if any(x <= 0 for x in image_shape):
@@ -315,19 +339,29 @@ def dcRemovalOperatorSejits(image_shape, blocks):
     splittingOperator : Splits a row flattened vector image into blocks.
     '''
 
-    image_shape, blocks = __toImageShapeAndBlocks(image_shape, blocks)
+    num_frames = image_shape[2]
+    image_shape, blocks = __toImageShapeAndBlocksSejits(image_shape, blocks)
 
     h, _ = image_shape
     length, _, num, _ = blocks
 
-    op_size = length * h * num
-    op_shape = (op_size, op_size)
+    op_size = length * h * num * num_frames
+    op_shape = (op_size, op_size)  # This needs to change, maybe?
 
     ## @Mihir: this is where your code was inserted
-    sejits_dcrem = lambda block_set: dcRemoval(Array.array(block_set), length, h)
+    sejits_dcrem = lambda block_set: dcRemoval(Array.array(block_set), length, h, num_frames)
 
-    @matvectorized((h, -1), order = 'F')
+    # @matvectorized((h, -1), order = 'F')  # TODO: this could be a problem...
     def dcRem(block_set):
+
+        # Matvectorize each layer
+
+        # block_set = block_set.reshape((block_set.size, 1))
+        # y_coord = block_set.size // num_frames // length
+        # frame_size = block_set.size // num_frames
+        # print "Started dcRem SEJITS with block shape: ({0}, {1}, {2})".format(num_frames, y_coord, length)
+        # print "SEJITS Frame 1 Starters: ", block_set[:5].flatten()
+        # print "SEJITS Frame 2 Starters: ", block_set[frame_size:5+frame_size].flatten()
         ## @Mihir: this is where your code was inserted
         return sejits_dcrem(block_set)
 
@@ -373,14 +407,23 @@ def dcRemovalOperatorPyOp(image_shape, blocks):
 
     @matvectorized((h, -1), order = 'F')
     def dcRem(block_set):
+        # print ("Hello: ", h)
+
         # print "Block Set Sum Pyop:", sum(block_set.flatten())
+        # print "----- : ", block_set.flatten()[0:5]
+
         # print "Pyop input shape", block_set.shape
         # print "PYOP:", block_set.flatten()[:5]
 
+        # print "dcRem Shape", block_set.shape
         ## Partial field of views, one per row
         pfovs = block_set.reshape((-1, length))
-        # print "Shape:", pfovs.shape
+        # print "Started dcRem PyOP with block shape:", pfovs.shape
+
+        # print "Pyop Num Pfovs", len(pfovs)
+        # print "Pyop Pfov Length", length
         # print "Pyop PFOVS SHAPE:", pfovs.shape
+
 
 
         ## Sum across rows to get the average of each pfov.
@@ -401,7 +444,9 @@ def dcRemovalOperatorPyOp(image_shape, blocks):
         dc_values_rep = tile(dc_values, (length, 1)).T
 
         ## reshape into the blocks_set image. Turn to column format
-        return (pfovs - dc_values_rep).reshape((h, -1))
+        result = (pfovs - dc_values_rep).reshape((h, -1))
+        # print "PyOP Result Shape: ", result.shape
+        return result
 
 
 
@@ -474,10 +519,10 @@ def dc_recon(pfovimage, tikhonov = 0.0, smooth = 0.0,
     ## Do linop stuff to create P, S, D
     S = splittingOperator(shape[:2], (width, shift))
     Dpyop = dcRemovalOperatorPyOp(shape[:2], (width, shift))
-    Dsejits = dcRemovalOperatorSejits(shape[:2], (width, shift))
+    Dsejits = dcRemovalOperatorSejits(shape, (width, shift))
 
     Apyop = Dpyop*S
-    Asejits = Dsejits*S
+    Asejits = Dsejits*blockDiag([S] * frames)
 
     ## TODO: Add the different smoothing parameters instead of the 1 and -1
     ## values in this array. The names of the variables should be something
@@ -509,7 +554,7 @@ def dc_recon(pfovimage, tikhonov = 0.0, smooth = 0.0,
         ])
 
     A_hat_sejits = vstack(
-        [ blockDiag([Asejits] * frames),
+        [ Asejits,
           sqrt(tikhonov)*eye((vec_size, vec_size)),
           sqrt(smooth)*convolve(kernel = kernel, shape = shape, order = 'F')
         ])
@@ -526,7 +571,7 @@ def dc_recon(pfovimage, tikhonov = 0.0, smooth = 0.0,
     Bsejits = toScipyLinearOperator(A_hat_sejits.T*A_hat_sejits)
 
     descent_step_pyop = 1/(eigsh(Bpyop, 1, tol = 4)[0][0])
-    descent_step_sejits = 1/(eigsh(Bsejits, 1, tol = 4)[0][0])
+    descent_step_sejits = descent_step_pyop # 1/(eigsh(Bsejits, 1, tol = 4)[0][0])
 
     print "Descent Step Pyop:", descent_step_pyop
     print "Descent Step SEJITS:", descent_step_sejits
