@@ -133,10 +133,6 @@ def fista(A, b, pL, initial = None,
     t1 = 1
 
     ## Initialize residual using empty guess
-
-    # print "A's shape: ", A.shape
-    # print "b's shape: ", b.shape
-    # print "x1's shape: ", x1.shape
     residual = [ norm(A.dot(x1) - b) / norm(b) ]
 
     i = 0
@@ -178,7 +174,6 @@ def fista(A, b, pL, initial = None,
         ## Set up for next iteration.
         x1 = x2
         t1 = t2
-        print "Completed FISTA iteration"
 
     ## z is returned because it is the last calculated value that adheres
     ## to any constraints inside pL (positivity).
@@ -346,23 +341,10 @@ def dcRemovalOperatorSejits(image_shape, blocks):
     length, _, num, _ = blocks
 
     op_size = length * h * num * num_frames
-    op_shape = (op_size, op_size)  # This needs to change, maybe?
+    op_shape = (op_size, op_size)
 
-    ## @Mihir: this is where your code was inserted
     sejits_dcrem = lambda block_set: dcRemoval(Array.array(block_set), length, h, num_frames)
-
-    # @matvectorized((h, -1), order = 'F')  # TODO: this could be a problem...
     def dcRem(block_set):
-
-        # Matvectorize each layer
-
-        # block_set = block_set.reshape((block_set.size, 1))
-        # y_coord = block_set.size // num_frames // length
-        # frame_size = block_set.size // num_frames
-        # print "Started dcRem SEJITS with block shape: ({0}, {1}, {2})".format(num_frames, y_coord, length)
-        # print "SEJITS Frame 1 Starters: ", block_set[:5].flatten()
-        # print "SEJITS Frame 2 Starters: ", block_set[frame_size:5+frame_size].flatten()
-        ## @Mihir: this is where your code was inserted
         return sejits_dcrem(block_set)
 
     return LinearOperator(op_shape, dcRem, dcRem)
@@ -407,52 +389,21 @@ def dcRemovalOperatorPyOp(image_shape, blocks):
 
     @matvectorized((h, -1), order = 'F')
     def dcRem(block_set):
-        # print ("Hello: ", h)
 
-        # print "Block Set Sum Pyop:", sum(block_set.flatten())
-        # print "----- : ", block_set.flatten()[0:5]
-
-        # print "Pyop input shape", block_set.shape
-        # print "PYOP:", block_set.flatten()[:5]
-
-        # print "dcRem Shape", block_set.shape
         ## Partial field of views, one per row
         pfovs = block_set.reshape((-1, length))
-        # print "Started dcRem PyOP with block shape:", pfovs.shape
-
-        # print "Pyop Num Pfovs", len(pfovs)
-        # print "Pyop Pfov Length", length
-        # print "Pyop PFOVS SHAPE:", pfovs.shape
-
-
 
         ## Sum across rows to get the average of each pfov.
         dc_values = pfovs.sum(1)
-        # print "Length Pyop:", len(dc_values)
-        # print "PFOV Length", length
-        # print "PFOV Height", h
-
-        # print "PYOP:", sum(dc_values)
-
-        ## The important one
-        # print "Pyop DC Values:", dc_values[:5]
-
         dc_values = dc_values / length
 
         ## Tiling to apply DC removal to each point in each pfov.
         ## Transpose due to tile treating 1D as a row vector.
         dc_values_rep = tile(dc_values, (length, 1)).T
 
-        ## reshape into the blocks_set image. Turn to column format
-        result = (pfovs - dc_values_rep).reshape((h, -1))
-        # print "PyOP Result Shape: ", result.shape
-        return result
-
-
+        return (pfovs - dc_values_rep).reshape((h, -1))
 
     ## @Mihir: this is where your code was inserted
-    # sejits_dcrem = lambda block_set: dcRemoval(Array.array(block_set), length, h)
-    # return LinearOperator(op_shape, sejits_dcrem, sejits_dcrem)
     return LinearOperator(op_shape, dcRem, dcRem)
 
 def dc_recon(pfovimage, tikhonov = 0.0, smooth = 0.0,
@@ -596,6 +547,7 @@ def dc_recon(pfovimage, tikhonov = 0.0, smooth = 0.0,
             residual_diff = residual_diff,
             max_iter = max_iter,
             logger = logger)
+
     print "Total PyOp FISTA Time:", time.time() - start_time
 
     image_pyop = reshape(x, shape, order='F')
@@ -617,6 +569,7 @@ def dc_recon(pfovimage, tikhonov = 0.0, smooth = 0.0,
             residual_diff = residual_diff,
             max_iter = max_iter,
             logger = logger)
+
     print "Total SEJITS FISTA Time:", time.time() - start_time
 
     image_sejits = reshape(x, shape, order='F')

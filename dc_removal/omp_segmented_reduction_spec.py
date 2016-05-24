@@ -43,8 +43,6 @@ class ConcreteRemoval(ConcreteSpecializedFunction):
     def __call__(self, input_arr, stride_length, height, num_frames):
 
         # Creating an output array; we don't want to mutate the original input data
-        # print ("Printing the size here:", input_arr.size)
-        # print ("In Python:", input_arr[:5].flatten())
         output_arr = np.zeros((input_arr.size, )).astype(input_arr.dtype)
         self._c_function(input_arr, output_arr)
         return output_arr.reshape(input_arr.shape)
@@ -79,15 +77,12 @@ class LazyRemoval(LazySpecializedFunction):
 
         inp_type = get_c_type_from_numpy_dtype(input_data.dtype)()
 
-        # print ("Input Dimensions: ", input_data.ndim)
-        # print ("Input Shape: ", input_data.shape)
         input_pointer = np.ctypeslib.ndpointer(input_data.dtype, input_data.ndim, input_data.shape)
         output_pointer = np.ctypeslib.ndpointer(input_data.dtype, 1, (input_data.size, 1))
 
         # Get the kernel function, apply_one
         apply_one = PyBasicConversions().visit(py_ast).find(FunctionDecl)
 
-        # apply_one = PyBasicConversions().visit(py_ast.body[0])
         apply_one.return_type = inp_type
         apply_one.params[0].type = inp_type
         apply_one.params[1].type = inp_type
@@ -95,24 +90,10 @@ class LazyRemoval(LazySpecializedFunction):
         # Naming our kernel method
         apply_one.name = 'apply'
         num_pfovs = int(layer_length / segment_length)
-        print ("Num Pfovs: ", num_pfovs)
-        print ("Len Pfovs: ", segment_length)
-        print ("Num Layers:", num_2d_layers)
-        print ("Layer Length:", layer_length)
 
         reduction_template = StringTemplate(r"""
-            // printf("THIS IS C: %i\n", sizeof(input_arr));
-
-            // printf("In C: [  ");
-            // for (int i=0; i<5; i++) {
-            //     printf("%f  ", input_arr[i]);
-            // }
-            // printf("]\n");
-
-            #pragma omp parallel for
+            #pragma omp parallel for collapse(2)
             for (int level = 0; level < $num_2d_layers; level++) {
-
-                #pragma omp parallel for
                 for (int i = 0; i < $num_pfovs; i++) {
 
                     /* Compute sum */
@@ -136,7 +117,6 @@ class LazyRemoval(LazySpecializedFunction):
                 'layer_length': Constant(layer_length),
                 'num_pfovs': Constant(num_pfovs),
                 'pfov_length': Constant(segment_length),
-                # 'data_height': Constant(data_height)
               })
 
         reducer = CFile("generated", [

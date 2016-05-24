@@ -17,49 +17,24 @@ def dcRemoval(block_set, pfov_length, height, num_frames):
     :param: pfov_length The length of the partial field of view
     :return: the result of the DC removal
     """
-    shape = block_set.shape
-    # print "SEJITS Real Block Shape", shape
-
+    # matvectorize the data into processable form (see Pyop's matvectorized method):
     block_set = block_set.reshape((num_frames, -1))
-    # print [frame.shape for frame in block_set]
-
-    # Attempting to simulate matvectorized...
     block_set = np.array([frame.reshape((height, -1), order='F').flatten() for frame in block_set])
-
-    # print "FIRST : ", block_set[0][0:5]
-    # print "SECOND: ", block_set[1][0:5]
-
     block_set = np.expand_dims(block_set.flatten(), axis=1)
-    # print "---> Shape:", block_set.shape
-    # print [frame.shape for frame in block_set]
 
-    # block_set = np.array([frame.reshape((-1, pfov_length)) for frame in block_set])
-
-    # block_set = np.array([frame.reshape((-1, 1), order='F') for frame in block_set])
-    # print [frame.shape for frame in block_set]
-
-    # block_set = np.vstack([frame.reshape((frame.size, 1), order = 'F') for frame in block_set])
-    # block_set = block_set.reshape((-1, 1), order = 'C')
-
-    # block_set = block_set.reshape((num_frames, height, -1), order = 'F')
-    # block_set = block_set.reshape((block_set.size, 1), order = 'C')
-
-    # new_shape = temp_block.shape
-    # print "SEJITS Temp Block Shape: ", temp_block.shape
+    # perform processing
     segmented_arr = segmented_spec(block_set, pfov_length, height, num_frames)
 
-    segmented_arr = segmented_arr.reshape((num_frames, height, -1), order='C') # <------ ?????
+    # matvectorize the data into presentable form:
+    segmented_arr = segmented_arr.reshape((num_frames, height, -1), order='C')
     segmented_arr = np.array([frame.ravel(order='F') for frame in segmented_arr])
-    # segmented_arr = np.array([frame.reshape((192, 52)) for frame in segmented_arr])
-    # segmented_arr = segmented_arr.ravel(order='F')
 
-    # print "SEJITS Final Shape", new_shape
     return segmented_arr.reshape((-1, 1), order='C')
+
 
 #
 # Segmented Reduction Specializer Invocation
 #
-
 
 def add(x, y):
     """
