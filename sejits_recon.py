@@ -522,7 +522,7 @@ def dc_recon(pfovimage, tikhonov = 0.0, smooth = 0.0,
     Bsejits = toScipyLinearOperator(A_hat_sejits.T*A_hat_sejits)
 
     descent_step_pyop = 1/(eigsh(Bpyop, 1, tol = 4)[0][0])
-    descent_step_sejits = descent_step_pyop # 1/(eigsh(Bsejits, 1, tol = 4)[0][0])
+    descent_step_sejits = 1/(eigsh(Bsejits, 1, tol = 4)[0][0])
 
     print "Descent Step Pyop:", descent_step_pyop
     print "Descent Step SEJITS:", descent_step_sejits
@@ -574,6 +574,10 @@ def dc_recon(pfovimage, tikhonov = 0.0, smooth = 0.0,
 
     image_sejits = reshape(x, shape, order='F')
     image_sejits = zoom(image_sejits, (1, float(numPixGrid)/shape[1], 1))
+
+
+    #### TODO !!!!!! :::::::  TEMP GET RID OF THIS LINE
+    # image_sejits, res_sejits = image_pyop, res_pyop
 
     ## The z data comes in as stacks of xz or yz planes, so the array needs
     ## to be flipped to match the expected axes.

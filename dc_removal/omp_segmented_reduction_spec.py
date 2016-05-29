@@ -43,8 +43,12 @@ class ConcreteRemoval(ConcreteSpecializedFunction):
     def __call__(self, input_arr, stride_length, height, num_frames):
 
         # Creating an output array; we don't want to mutate the original input data
+
+        # print ("__CALL__")
         output_arr = np.zeros((input_arr.size, )).astype(input_arr.dtype)
+        # print ("__CALL__ 222")
         self._c_function(input_arr, output_arr)
+        # print ("__CALL__ 333")
         return output_arr.reshape(input_arr.shape)
 
 
@@ -90,25 +94,38 @@ class LazyRemoval(LazySpecializedFunction):
         # Naming our kernel method
         apply_one.name = 'apply'
         num_pfovs = int(layer_length / segment_length)
+        print ("num layers: ", num_2d_layers)
+        print ("input size: ", input_data.size)
+        print ("layer length: ", layer_length)
 
+        # TODO: TIME TO START CPROFILING THINGS!
         reduction_template = StringTemplate(r"""
-            #pragma omp parallel for collapse(2)
+            // printf("Hello");
+            #pragma omp parallel for // collapse(2)
             for (int level = 0; level < $num_2d_layers; level++) {
-                for (int i = 0; i < $num_pfovs; i++) {
+                int level_offset = level * $layer_length;
+                for (int i=0; i<$num_pfovs ; i++) {
 
-                    /* Compute sum */
+                    // printf ("------------------------\n");
+
+                    // for a particular layer
+                    int raw_index = 0, index = 0, count = 0;
+                    // int save_in_layer_offset = in_layer_offset;
                     double avg = 0.0;
-                    #pragma omp parallel for reduction(+:avg)
-                    for (int j = 0; j < $pfov_length; j++) {
-                        avg += input_arr[level * $layer_length + i * $pfov_length + j];
+                    for (int j=0; j<$pfov_length; j++) {
+                        int in_layer_offset = ($pfov_length * i + j) / ($layer_length / $data_height);
+                        raw_index = in_layer_offset + ($pfov_length * i + j) * $data_height;
+                        index = raw_index % $layer_length;
+                        // printf ("Index: %i, I: %i, J: %i\n", index, i, j);
+                        avg += input_arr[level_offset + index];
                     }
                     avg = avg / $pfov_length;
 
-                    /* Handle the division */
-                    #pragma omp parallel for
-                    for (int j = 0; j < $pfov_length; j++) {
-                        output_arr[level * $layer_length + i * $pfov_length + j] =
-                                input_arr[level * $layer_length + i * $pfov_length + j] - avg;
+                    for (int j=0; j<$pfov_length; j++) {
+                        int in_layer_offset = ($pfov_length * i + j) / ($layer_length / $data_height);
+                        raw_index = in_layer_offset + ($pfov_length * i + j) * $data_height;
+                        index = raw_index % $layer_length;
+                        output_arr[level_offset + index] = input_arr[level_offset + index] - avg;
                     }
                 }
             }
@@ -117,6 +134,7 @@ class LazyRemoval(LazySpecializedFunction):
                 'layer_length': Constant(layer_length),
                 'num_pfovs': Constant(num_pfovs),
                 'pfov_length': Constant(segment_length),
+                'data_height': Constant(data_height),
               })
 
         reducer = CFile("generated", [
