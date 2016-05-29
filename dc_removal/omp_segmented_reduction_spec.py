@@ -43,12 +43,8 @@ class ConcreteRemoval(ConcreteSpecializedFunction):
     def __call__(self, input_arr, stride_length, height, num_frames):
 
         # Creating an output array; we don't want to mutate the original input data
-
-        # print ("__CALL__")
         output_arr = np.zeros((input_arr.size, )).astype(input_arr.dtype)
-        # print ("__CALL__ 222")
         self._c_function(input_arr, output_arr)
-        # print ("__CALL__ 333")
         return output_arr.reshape(input_arr.shape)
 
 
@@ -94,17 +90,16 @@ class LazyRemoval(LazySpecializedFunction):
         # Naming our kernel method
         apply_one.name = 'apply'
         num_pfovs = int(layer_length / segment_length)
-        print ("num layers: ", num_2d_layers)
-        print ("input size: ", input_data.size)
-        print ("layer length: ", layer_length)
+        # print ("num layers: ", num_2d_layers)
+        # print ("input size: ", input_data.size)
+        # print ("layer length: ", layer_length)
 
         # TODO: TIME TO START CPROFILING THINGS!
         reduction_template = StringTemplate(r"""
-            #pragma omp parallel for // collapse(2)
+            #pragma omp parallel for collapse(2)
             for (int level = 0; level < $num_2d_layers; level++) {
-                int level_offset = level * $layer_length;
-
                 for (int i=0; i<$num_pfovs ; i++) {
+                    int level_offset = level * $layer_length;
                     int raw_index = 0, index = 0, count = 0;
                     double avg = 0.0;
                     for (int j=0; j<$pfov_length; j++) {
