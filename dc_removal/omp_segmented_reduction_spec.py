@@ -96,18 +96,17 @@ class LazyRemoval(LazySpecializedFunction):
 
         # TODO: TIME TO START CPROFILING THINGS!
         reduction_template = StringTemplate(r"""
-            #pragma omp parallel for collapse(2)
+            // #pragma omp parallel for collapse(2)
             for (int level = 0; level < $num_2d_layers; level++) {
                 for (int i=0; i<$num_pfovs ; i++) {
                     int level_offset = level * $layer_length;
-                    int raw_index = 0, index = 0, count = 0;
                     double avg = 0.0;
                     for (int j=0; j<$pfov_length; j++) {
                         int in_layer_offset = ($pfov_length * i + j) /
                             ($layer_length / $data_height);
 
-                        raw_index = in_layer_offset + ($pfov_length * i + j) * $data_height;
-                        index = raw_index % $layer_length;
+                        int index = (in_layer_offset + ($pfov_length * i + j) * $data_height)
+                                     % $layer_length;
                         // printf ("Index: %i, I: %i, J: %i\n", index, i, j);
                         avg += input_arr[level_offset + index];
                     }
@@ -117,8 +116,8 @@ class LazyRemoval(LazySpecializedFunction):
                         int in_layer_offset = ($pfov_length * i + j) /
                             ($layer_length / $data_height);
 
-                        raw_index = in_layer_offset + ($pfov_length * i + j) * $data_height;
-                        index = raw_index % $layer_length;
+                        int index = (in_layer_offset + ($pfov_length * i + j) * $data_height)
+                                     % $layer_length;
                         output_arr[level_offset + index] = input_arr[level_offset + index] - avg;
                     }
                 }
