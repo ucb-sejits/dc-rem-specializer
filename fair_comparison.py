@@ -7,10 +7,10 @@ import time
 
 # Setting up the input data
 num_frames = 50
-pfov_length = 1000
+pfov_length = 100
 
 data_height = 100
-data_width = 100000
+data_width = 10000
 
 total_size = num_frames * data_height * data_width
 input_data = np.array(list(range(total_size))).reshape((num_frames, -1))
@@ -39,7 +39,7 @@ def dcRemovalPyop(block_set, height, length):
 pyop_start_time = time.time()
 pyop_result = np.array([dcRemovalPyop(frame, data_height, pfov_length) for frame in input_data])
 pyop_total_time = time.time() - pyop_start_time
-print "PyOP Time: ", pyop_total_time
+print "PyOP Time  : ", pyop_total_time
 
 
 # SEJITS
@@ -47,3 +47,5 @@ sejits_start_time = time.time()
 sejits_result = dcRemovalSejits(input_data, pfov_length, data_height, num_frames)
 sejits_total_time = time.time() - sejits_start_time
 print "SEJITS Time: ", sejits_total_time
+
+print "Identical Results?: ", all(pyop_result.flatten() == sejits_result.flatten())
