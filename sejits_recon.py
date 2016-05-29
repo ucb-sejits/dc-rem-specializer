@@ -541,25 +541,25 @@ def dc_recon(pfovimage, tikhonov = 0.0, smooth = 0.0,
         z[z<0] = 0
         return z
 
-    logger('Starting PyOp FISTA iteration', 1)
-    start_time = time.time()
-    x, res_pyop = fista(A_hat_pyop, b, pL_pyop, initial = S_hat.T*planes_vec,
-            residual_diff = residual_diff,
-            max_iter = max_iter,
-            logger = logger)
+    # logger('Starting PyOp FISTA iteration', 1)
+    # start_time = time.time()
+    # x, res_pyop = fista(A_hat_pyop, b, pL_pyop, initial = S_hat.T*planes_vec,
+    #        residual_diff = residual_diff,
+    #        max_iter = max_iter,
+    #        logger = logger)
 
-    print "Total PyOp FISTA Time:", time.time() - start_time
+    # print "Total PyOp FISTA Time:", time.time() - start_time
 
-    image_pyop = reshape(x, shape, order='F')
-    image_pyop = zoom(image_pyop, (1, float(numPixGrid)/shape[1], 1))
+    # image_pyop = reshape(x, shape, order='F')
+    # image_pyop = zoom(image_pyop, (1, float(numPixGrid)/shape[1], 1))
 
     ## The z data comes in as stacks of xz or yz planes, so the array needs
     ## to be flipped to match the expected axes.
-    if scan_dir is "z":
-        image_pyop = swapaxes(image_pyop, 0, 1).T
+    # if scan_dir is "z":
+    #    image_pyop = swapaxes(image_pyop, 0, 1).T
 
-    logger("Residual FISTA: {}".format(res_pyop[-1]), 1)
-    logger("Number of iterations: {}".format(len(res_pyop) - 1), 1)
+    # logger("Residual FISTA: {}".format(res_pyop[-1]), 1)
+    # logger("Number of iterations: {}".format(len(res_pyop) - 1), 1)
 
 
 
@@ -577,7 +577,7 @@ def dc_recon(pfovimage, tikhonov = 0.0, smooth = 0.0,
 
 
     #### TODO !!!!!! :::::::  TEMP GET RID OF THIS LINE
-    # image_sejits, res_sejits = image_pyop, res_pyop
+    image_pyop, res_pyop = image_sejits, res_sejits
 
     ## The z data comes in as stacks of xz or yz planes, so the array needs
     ## to be flipped to match the expected axes.
