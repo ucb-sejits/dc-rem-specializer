@@ -501,19 +501,19 @@ def dc_recon(pfovimage, tikhonov = 0.0, smooth = 0.0,
     A_hat_pyop = vstack(    # not actually A_hat blockDiag is A_hat
         [ blockDiag([Apyop] * frames),
           sqrt(tikhonov)*eye((vec_size, vec_size)),
-          sqrt(smooth)*convolve(kernel = kernel, shape = shape, order = 'F')
+          # sqrt(smooth)*convolve(kernel = kernel, shape = shape, order = 'F')
         ])
 
     A_hat_sejits = vstack(
         [ Asejits,
           sqrt(tikhonov)*eye((vec_size, vec_size)),
-          sqrt(smooth)*convolve(kernel = kernel, shape = shape, order = 'F')
+          # sqrt(smooth)*convolve(kernel = kernel, shape = shape, order = 'F')
         ])
 
 
     # NOTE: If you're going to get rid of convultion, make sure to make use 1*vec_size instead of 2*vec_size
     planes_vec = hstack([f.flatten(1) for f in planes])
-    b = hstack( [planes_vec, zeros((2*vec_size, ))] )
+    b = hstack( [planes_vec, zeros((1*vec_size, ))] )
 
 
     ## Largest possible safe step size. If the alpha is any larger then the
@@ -541,25 +541,25 @@ def dc_recon(pfovimage, tikhonov = 0.0, smooth = 0.0,
         z[z<0] = 0
         return z
 
-    # logger('Starting PyOp FISTA iteration', 1)
-    # start_time = time.time()
-    # x, res_pyop = fista(A_hat_pyop, b, pL_pyop, initial = S_hat.T*planes_vec,
-    #        residual_diff = residual_diff,
-    #        max_iter = max_iter,
-    #        logger = logger)
+    logger('Starting PyOp FISTA iteration', 1)
+    start_time = time.time()
+    x, res_pyop = fista(A_hat_pyop, b, pL_pyop, initial = S_hat.T*planes_vec,
+           residual_diff = residual_diff,
+           max_iter = max_iter,
+           logger = logger)
 
-    # print "Total PyOp FISTA Time:", time.time() - start_time
+    print "Total PyOp FISTA Time:", time.time() - start_time
 
-    # image_pyop = reshape(x, shape, order='F')
-    # image_pyop = zoom(image_pyop, (1, float(numPixGrid)/shape[1], 1))
+    image_pyop = reshape(x, shape, order='F')
+    image_pyop = zoom(image_pyop, (1, float(numPixGrid)/shape[1], 1))
 
-    ## The z data comes in as stacks of xz or yz planes, so the array needs
-    ## to be flipped to match the expected axes.
-    # if scan_dir is "z":
-    #    image_pyop = swapaxes(image_pyop, 0, 1).T
+    # The z data comes in as stacks of xz or yz planes, so the array needs
+    # to be flipped to match the expected axes.
+    if scan_dir is "z":
+       image_pyop = swapaxes(image_pyop, 0, 1).T
 
-    # logger("Residual FISTA: {}".format(res_pyop[-1]), 1)
-    # logger("Number of iterations: {}".format(len(res_pyop) - 1), 1)
+    logger("Residual FISTA: {}".format(res_pyop[-1]), 1)
+    logger("Number of iterations: {}".format(len(res_pyop) - 1), 1)
 
 
 
