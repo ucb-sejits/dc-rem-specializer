@@ -100,20 +100,17 @@ class LazyRemoval(LazySpecializedFunction):
 
         # TODO: TIME TO START CPROFILING THINGS!
         reduction_template = StringTemplate(r"""
-            // printf("Hello");
             #pragma omp parallel for // collapse(2)
             for (int level = 0; level < $num_2d_layers; level++) {
                 int level_offset = level * $layer_length;
+
                 for (int i=0; i<$num_pfovs ; i++) {
-
-                    // printf ("------------------------\n");
-
-                    // for a particular layer
                     int raw_index = 0, index = 0, count = 0;
-                    // int save_in_layer_offset = in_layer_offset;
                     double avg = 0.0;
                     for (int j=0; j<$pfov_length; j++) {
-                        int in_layer_offset = ($pfov_length * i + j) / ($layer_length / $data_height);
+                        int in_layer_offset = ($pfov_length * i + j) /
+                            ($layer_length / $data_height);
+
                         raw_index = in_layer_offset + ($pfov_length * i + j) * $data_height;
                         index = raw_index % $layer_length;
                         // printf ("Index: %i, I: %i, J: %i\n", index, i, j);
@@ -122,7 +119,9 @@ class LazyRemoval(LazySpecializedFunction):
                     avg = avg / $pfov_length;
 
                     for (int j=0; j<$pfov_length; j++) {
-                        int in_layer_offset = ($pfov_length * i + j) / ($layer_length / $data_height);
+                        int in_layer_offset = ($pfov_length * i + j) /
+                            ($layer_length / $data_height);
+
                         raw_index = in_layer_offset + ($pfov_length * i + j) * $data_height;
                         index = raw_index % $layer_length;
                         output_arr[level_offset + index] = input_arr[level_offset + index] - avg;
@@ -130,25 +129,25 @@ class LazyRemoval(LazySpecializedFunction):
                 }
             }
         """, {
-                'num_2d_layers': Constant(num_2d_layers),
-                'layer_length': Constant(layer_length),
-                'num_pfovs': Constant(num_pfovs),
-                'pfov_length': Constant(segment_length),
-                'data_height': Constant(data_height),
-              })
+            'num_2d_layers': Constant(num_2d_layers),
+            'layer_length': Constant(layer_length),
+            'num_pfovs': Constant(num_pfovs),
+            'pfov_length': Constant(segment_length),
+            'data_height': Constant(data_height),
+        })
 
         reducer = CFile("generated", [
             CppInclude("omp.h"),
             CppInclude("stdio.h"),
             apply_one,
             FunctionDecl(None, REDUCTION_FUNC_NAME,
-                params=[
-                    SymbolRef("input_arr", input_pointer()),
-                    SymbolRef("output_arr", output_pointer())
-                ],
-                defn=[
-                    reduction_template
-                ])
+                         params=[
+                             SymbolRef("input_arr", input_pointer()),
+                             SymbolRef("output_arr", output_pointer())
+                         ],
+                         defn=[
+                             reduction_template
+                         ])
         ], 'omp')
 
         return [reducer]
