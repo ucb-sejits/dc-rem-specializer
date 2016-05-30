@@ -207,6 +207,25 @@ def __toImageShapeAndBlocks(image_shape, blocks):
     return image_shape, blocks
 
 
+def __toImageShapeAndBlocksSejits(image_shape, blocks):
+
+    h, w, num_frames = image_shape
+    length, shift = blocks
+
+    image_shape = __ImageShape(*(image_shape[:2]))
+    blocks = __Blocks(length, h, int((w - length) / shift) + 1, shift)
+
+    if any(x <= 0 for x in image_shape):
+        raise ValueError("Image shape contains a non-positive. {}".
+                         format(image_shape))
+
+    if any(x <= 0 for x in blocks):
+        raise ValueError("blocks contains a non-positive. {}".
+                         format(blocks))
+
+    return image_shape, blocks
+
+
 def __pairwise(x):
     ''' s --> (s0, s1), (s1, s2), (s2, s3), ...  '''
     a, b = tee(x)
@@ -315,20 +334,17 @@ def dcRemovalOperatorSejits(image_shape, blocks):
     splittingOperator : Splits a row flattened vector image into blocks.
     '''
 
-    image_shape, blocks = __toImageShapeAndBlocks(image_shape, blocks)
+    num_frames = image_shape[2]
+    image_shape, blocks = __toImageShapeAndBlocksSejits(image_shape, blocks)
 
     h, _ = image_shape
     length, _, num, _ = blocks
 
-    op_size = length * h * num
+    op_size = length * h * num * num_frames
     op_shape = (op_size, op_size)
 
-    ## @Mihir: this is where your code was inserted
-    sejits_dcrem = lambda block_set: dcRemoval(Array.array(block_set), length, h)
-
-    @matvectorized((h, -1), order = 'F')
+    sejits_dcrem = lambda block_set: dcRemoval(Array.array(block_set), length, h, num_frames)
     def dcRem(block_set):
-        ## @Mihir: this is where your code was inserted
         return sejits_dcrem(block_set)
 
     return LinearOperator(op_shape, dcRem, dcRem)
@@ -373,41 +389,21 @@ def dcRemovalOperatorPyOp(image_shape, blocks):
 
     @matvectorized((h, -1), order = 'F')
     def dcRem(block_set):
-        # print "Block Set Sum Pyop:", sum(block_set.flatten())
-        # print "Pyop input shape", block_set.shape
-        # print "PYOP:", block_set.flatten()[:5]
 
         ## Partial field of views, one per row
         pfovs = block_set.reshape((-1, length))
-        # print "Shape:", pfovs.shape
-        # print "Pyop PFOVS SHAPE:", pfovs.shape
-
 
         ## Sum across rows to get the average of each pfov.
         dc_values = pfovs.sum(1)
-        # print "Length Pyop:", len(dc_values)
-        # print "PFOV Length", length
-        # print "PFOV Height", h
-
-        # print "PYOP:", sum(dc_values)
-
-        ## The important one
-        # print "Pyop DC Values:", dc_values[:5]
-
         dc_values = dc_values / length
 
         ## Tiling to apply DC removal to each point in each pfov.
         ## Transpose due to tile treating 1D as a row vector.
         dc_values_rep = tile(dc_values, (length, 1)).T
 
-        ## reshape into the blocks_set image. Turn to column format
         return (pfovs - dc_values_rep).reshape((h, -1))
 
-
-
     ## @Mihir: this is where your code was inserted
-    # sejits_dcrem = lambda block_set: dcRemoval(Array.array(block_set), length, h)
-    # return LinearOperator(op_shape, sejits_dcrem, sejits_dcrem)
     return LinearOperator(op_shape, dcRem, dcRem)
 
 def dc_recon(pfovimage, tikhonov = 0.0, smooth = 0.0,
@@ -474,10 +470,10 @@ def dc_recon(pfovimage, tikhonov = 0.0, smooth = 0.0,
     ## Do linop stuff to create P, S, D
     S = splittingOperator(shape[:2], (width, shift))
     Dpyop = dcRemovalOperatorPyOp(shape[:2], (width, shift))
-    Dsejits = dcRemovalOperatorSejits(shape[:2], (width, shift))
+    Dsejits = dcRemovalOperatorSejits(shape, (width, shift))
 
     Apyop = Dpyop*S
-    Asejits = Dsejits*S
+    Asejits = Dsejits*blockDiag([S] * frames)
 
     ## TODO: Add the different smoothing parameters instead of the 1 and -1
     ## values in this array. The names of the variables should be something
@@ -505,19 +501,19 @@ def dc_recon(pfovimage, tikhonov = 0.0, smooth = 0.0,
     A_hat_pyop = vstack(    # not actually A_hat blockDiag is A_hat
         [ blockDiag([Apyop] * frames),
           sqrt(tikhonov)*eye((vec_size, vec_size)),
-          sqrt(smooth)*convolve(kernel = kernel, shape = shape, order = 'F')
+          # sqrt(smooth)*convolve(kernel = kernel, shape = shape, order = 'F')
         ])
 
     A_hat_sejits = vstack(
-        [ blockDiag([Asejits] * frames),
+        [ Asejits,
           sqrt(tikhonov)*eye((vec_size, vec_size)),
-          sqrt(smooth)*convolve(kernel = kernel, shape = shape, order = 'F')
+          # sqrt(smooth)*convolve(kernel = kernel, shape = shape, order = 'F')
         ])
 
 
     # NOTE: If you're going to get rid of convultion, make sure to make use 1*vec_size instead of 2*vec_size
     planes_vec = hstack([f.flatten(1) for f in planes])
-    b = hstack( [planes_vec, zeros((2*vec_size, ))] )
+    b = hstack( [planes_vec, zeros((1*vec_size, ))] )
 
 
     ## Largest possible safe step size. If the alpha is any larger then the
@@ -548,18 +544,19 @@ def dc_recon(pfovimage, tikhonov = 0.0, smooth = 0.0,
     logger('Starting PyOp FISTA iteration', 1)
     start_time = time.time()
     x, res_pyop = fista(A_hat_pyop, b, pL_pyop, initial = S_hat.T*planes_vec,
-            residual_diff = residual_diff,
-            max_iter = max_iter,
-            logger = logger)
+           residual_diff = residual_diff,
+           max_iter = max_iter,
+           logger = logger)
+
     print "Total PyOp FISTA Time:", time.time() - start_time
 
     image_pyop = reshape(x, shape, order='F')
     image_pyop = zoom(image_pyop, (1, float(numPixGrid)/shape[1], 1))
 
-    ## The z data comes in as stacks of xz or yz planes, so the array needs
-    ## to be flipped to match the expected axes.
+    # The z data comes in as stacks of xz or yz planes, so the array needs
+    # to be flipped to match the expected axes.
     if scan_dir is "z":
-        image_pyop = swapaxes(image_pyop, 0, 1).T
+       image_pyop = swapaxes(image_pyop, 0, 1).T
 
     logger("Residual FISTA: {}".format(res_pyop[-1]), 1)
     logger("Number of iterations: {}".format(len(res_pyop) - 1), 1)
@@ -572,10 +569,15 @@ def dc_recon(pfovimage, tikhonov = 0.0, smooth = 0.0,
             residual_diff = residual_diff,
             max_iter = max_iter,
             logger = logger)
+
     print "Total SEJITS FISTA Time:", time.time() - start_time
 
     image_sejits = reshape(x, shape, order='F')
     image_sejits = zoom(image_sejits, (1, float(numPixGrid)/shape[1], 1))
+
+
+    #### TODO !!!!!! :::::::  TEMP GET RID OF THIS LINE
+    image_pyop, res_pyop = image_sejits, res_sejits
 
     ## The z data comes in as stacks of xz or yz planes, so the array needs
     ## to be flipped to match the expected axes.

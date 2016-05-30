@@ -9,7 +9,7 @@ import time
 #
 
 
-def dcRemoval(block_set, pfov_length, height):
+def dcRemoval(block_set, pfov_length, height, num_frames):
     """
     Performs DC Removal with codegenerated SEJITS code. Input should be a flattened (1-D) vector.
 
@@ -17,33 +17,7 @@ def dcRemoval(block_set, pfov_length, height):
     :param: pfov_length The length of the partial field of view
     :return: the result of the DC removal
     """
-    # print "SEJITS input shape", block_set.shape
-    # block_set = block_set.reshape((-1, pfov_length))
-    # print "SEJITS input shape", block_set.shape
-
-    # print "dcRemoval([block_set], {0}, {1})".format(pfov_length, height)
-    # print "Block Set Sum SEJITS:", sum(block_set.flatten(0))
-    shape = block_set.shape
-    segmented_arr = segmented_spec(block_set.reshape((-1, pfov_length)), pfov_length, height)
-    # print "PFOV Len SEJITS", pfov_length
-
-    # print "SEJITS NEW SHAPE", block_set.reshape((-1, pfov_length)).shape
-    # segmented_arr = block_set.reshape((-1, pfov_length)).sum(1)
-    # print "SEJITS:", sum(segmented_arr)
-    # print "SEJITS Input:", block_set.flatten()[:5]
-
-    ## The important one
-    # print "SEJITS DC Values:", segmented_arr[:5]
-
-
-    # print "PFOV Length SEJITS:", pfov_length
-    # print "Height SEJITS:", height
-
-    b = Array.array(segmented_arr / (pfov_length * 1.0))
-
-
-    return subtract(block_set.ravel(), b, block_set.size, b.size,
-                    block_set.size // height).reshape(shape, order='C')
+    return segmented_spec(block_set, pfov_length, height, num_frames)
 
 
 #
@@ -63,50 +37,6 @@ def add(x, y):
 
 # Generate subclass with the add() function we just defined
 segmented_spec = omp_redspec.LazyRemoval.from_function(add, "SegmentedSummationSpec")
-
-
-#
-# Mapping Specializer Definition
-#
-
-
-def tile_mapper(func):
-    """
-    Returns a function that performs a tiled mapping. This is equivalent to the following using
-    numpy. (a is the bigger one) <--- TODO; check this
-
-    >>> data1 = np.array([1] * 10)
-    >>> data2 = np.tile([5, 7])
-    >>> output = [func(x, y) for x, y in zip(data1, data2)]
-    """
-    @wraps(func)
-    @specialize(output=gen_array_output)
-    def fn(a, b, size_a, size_b, width, output):
-
-        # size_b is the number of pfovs
-        # modulus is the length of pfovs
-
-        # NEW
-        modulus = size_a / size_b
-        for i in range(size_b):
-            for j in range(modulus):
-                output[i * modulus + j] = func(a[i * modulus + j], b[i])
-
-        # OLD
-        # modulus = size_a / size_b
-        # for i in range(size_a):
-        #     for j in range(modulus):
-        #         for k in range(width):
-        #             index = i * width * modulus + j * width + k
-        #             output[index] = func(a[index], b[i * width + k])
-        #     if i + 1 >= size_a / (width * modulus):
-        #         break
-    return fn
-
-
-@tile_mapper
-def subtract(x, y):
-    return x - y
 
 
 def main():

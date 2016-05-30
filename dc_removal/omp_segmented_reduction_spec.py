@@ -40,12 +40,12 @@ class ConcreteRemoval(ConcreteSpecializedFunction):
         self._c_function = self._compile(entry_name, tree, entry_type)
         return self
 
-    def __call__(self, input_arr, stride_length, height):
+    def __call__(self, input_arr, stride_length, height, num_frames):
 
         # Creating an output array; we don't want to mutate the original input data
-        output_arr = np.zeros(input_arr.size // stride_length).astype(input_arr.dtype)
+        output_arr = np.zeros((input_arr.size, )).astype(input_arr.dtype)
         self._c_function(input_arr, output_arr)
-        return output_arr
+        return output_arr.reshape(input_arr.shape)
 
 
 class LazyRemoval(LazySpecializedFunction):
@@ -55,77 +55,95 @@ class LazyRemoval(LazySpecializedFunction):
     execution.
     """
     subconfig_type = namedtuple('subconfig', ['dtype', 'ndim', 'shape', 'size', 'segment_length',
-                                              'data_height', 'flags'])
+                                              'data_height', 'num_frames', 'flags'])
 
     def args_to_subconfig(self, args):
         input_arr = args[0]
         segment_length = args[1]
         data_height = args[2]
+        num_frames = args[3]
         return self.subconfig_type(input_arr.dtype, input_arr.ndim, input_arr.shape,
-                                   input_arr.size, segment_length, data_height, [])
+                                   input_arr.size, segment_length, data_height, num_frames, [])
 
     def transform(self, py_ast, program_config):
 
         # Get the initial data
         input_data = program_config[0]
 
-        input_length = np.prod(input_data.size)
+        num_2d_layers = np.prod(input_data.num_frames)
+        data_height = np.prod(input_data.data_height)
+        layer_length = np.prod(input_data.size // num_2d_layers)
         segment_length = np.prod(input_data.segment_length)
-        # data_height = np.prod(input_data.data_height)
 
         inp_type = get_c_type_from_numpy_dtype(input_data.dtype)()
-        output_size = input_data.size // segment_length
+
         input_pointer = np.ctypeslib.ndpointer(input_data.dtype, input_data.ndim, input_data.shape)
-        output_pointer = np.ctypeslib.ndpointer(input_data.dtype, 1, (output_size, ))
+        output_pointer = np.ctypeslib.ndpointer(input_data.dtype, 1, (input_data.size, 1))
 
         # Get the kernel function, apply_one
         apply_one = PyBasicConversions().visit(py_ast).find(FunctionDecl)
 
-        # apply_one = PyBasicConversions().visit(py_ast.body[0])
         apply_one.return_type = inp_type
         apply_one.params[0].type = inp_type
         apply_one.params[1].type = inp_type
 
         # Naming our kernel method
         apply_one.name = 'apply'
+        num_pfovs = int(layer_length / segment_length)
+        # print ("num layers: ", num_2d_layers)
+        # print ("input size: ", input_data.size)
+        # print ("layer length: ", layer_length)
 
-        # width = int(input_length / data_height)
-        # responsible_size = int(input_length / segment_length / width)
-        num_pfovs = int(input_length / segment_length)
-
-        print ("Segment Length", segment_length)
-        print ("NUM pofvs", num_pfovs)
-
+        # TODO: TIME TO START CPROFILING THINGS!
         reduction_template = StringTemplate(r"""
-        {
-            #pragma omp parallel for
-            for (int i = 0; i < $num_pfovs; i++) {
-                int j;
-                double result = 0.0;
-                #pragma omp parallel for reduction(+:result)
-                for (j = 0; j < $pfov_length; j++) {
-                    result += input_arr[i * $pfov_length + j];
+            #pragma omp parallel for collapse(2)
+            for (int level = 0; level < $num_2d_layers; level++) {
+                for (int i=0; i<$num_pfovs ; i++) {
+                    int level_offset = level * $layer_length;
+                    double avg = 0.0;
+                    // #pragma omp parallel for reduction (+:avg)
+                    for (int j=0; j<$pfov_length; j++) {
+                        int in_layer_offset = ($pfov_length * i + j) /
+                            ($layer_length / $data_height);
+
+                        int index = (in_layer_offset + ($pfov_length * i + j) * $data_height)
+                                     % $layer_length;
+                        // printf ("Index: %i, I: %i, J: %i\n", index, i, j);
+                        avg += input_arr[level_offset + index];
+                    }
+                    avg = avg / $pfov_length;
+
+                    // #pragma omp parallel for
+                    for (int j=0; j<$pfov_length; j++) {
+                        int in_layer_offset = ($pfov_length * i + j) /
+                            ($layer_length / $data_height);
+
+                        int index = (in_layer_offset + ($pfov_length * i + j) * $data_height)
+                                     % $layer_length;
+                        output_arr[level_offset + index] = input_arr[level_offset + index] - avg;
+                    }
                 }
-                output_arr[i] = result;
             }
-        }
         """, {
-              'num_pfovs': Constant(num_pfovs),
-              'pfov_length': Constant(segment_length)
-              })
+            'num_2d_layers': Constant(num_2d_layers),
+            'layer_length': Constant(layer_length),
+            'num_pfovs': Constant(num_pfovs),
+            'pfov_length': Constant(segment_length),
+            'data_height': Constant(data_height),
+        })
 
         reducer = CFile("generated", [
             CppInclude("omp.h"),
             CppInclude("stdio.h"),
             apply_one,
             FunctionDecl(None, REDUCTION_FUNC_NAME,
-                params=[
-                    SymbolRef("input_arr", input_pointer()),
-                    SymbolRef("output_arr", output_pointer())
-                ],
-                defn=[
-                    reduction_template
-                ])
+                         params=[
+                             SymbolRef("input_arr", input_pointer()),
+                             SymbolRef("output_arr", output_pointer())
+                         ],
+                         defn=[
+                             reduction_template
+                         ])
         ], 'omp')
 
         return [reducer]
@@ -135,13 +153,10 @@ class LazyRemoval(LazySpecializedFunction):
 
         # Get the argument type data
         input_data = program_config[0]
-        segment_length = np.prod(input_data.segment_length)
-        # data_height = input_data.data_height
-        output_size = input_data.size // segment_length
 
         # Create the pointers for the input and output data types
         input_pointer = np.ctypeslib.ndpointer(input_data.dtype, input_data.ndim, input_data.shape)
-        output_pointer = np.ctypeslib.ndpointer(input_data.dtype, 1, (output_size, ))
+        output_pointer = np.ctypeslib.ndpointer(input_data.dtype, 1, (input_data.size, ))
 
         entry_type = CFUNCTYPE(None, input_pointer, output_pointer)
 
