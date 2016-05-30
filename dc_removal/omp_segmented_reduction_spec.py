@@ -101,7 +101,7 @@ class LazyRemoval(LazySpecializedFunction):
                 for (int i=0; i<$num_pfovs ; i++) {
                     int level_offset = level * $layer_length;
                     double avg = 0.0;
-                    #pragma omp parallel for reduction (+:avg)
+                    // #pragma omp parallel for reduction (+:avg)
                     for (int j=0; j<$pfov_length; j++) {
                         int in_layer_offset = ($pfov_length * i + j) /
                             ($layer_length / $data_height);
@@ -113,7 +113,7 @@ class LazyRemoval(LazySpecializedFunction):
                     }
                     avg = avg / $pfov_length;
 
-                    #pragma omp parallel for
+                    // #pragma omp parallel for
                     for (int j=0; j<$pfov_length; j++) {
                         int in_layer_offset = ($pfov_length * i + j) /
                             ($layer_length / $data_height);
