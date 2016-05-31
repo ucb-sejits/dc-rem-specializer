@@ -343,9 +343,8 @@ def dcRemovalOperatorSejits(image_shape, blocks):
     op_size = length * h * num * num_frames
     op_shape = (op_size, op_size)
 
-    sejits_dcrem = lambda block_set: dcRemoval(block_set, length, h, num_frames)
     def dcRem(block_set):
-        return sejits_dcrem(block_set)
+        return dcRemoval(block_set, length, h, num_frames)
 
     return LinearOperator(op_shape, dcRem, dcRem)
 
